@@ -20,10 +20,8 @@ namespace BsiGame.UI.UIElements
 		private const string StorePanel                      = "StorePanel";
 		private const string TriggerEvent                    = "TriggerEvent";
 
-		private static readonly Type VisualElement_Type          = typeof(VisualElement);
 		private static readonly Type BaseVisualElementPanel_Type = Type.GetType("UnityEngine.UIElements.BaseVisualElementPanel, UnityEngine.UIElementsModule");
 		private static readonly Type HierarchyEvent_Type         = Type.GetType("UnityEngine.UIElements.HierarchyEvent, UnityEngine.UIElementsModule");
-		private static readonly Type HierarchyChangeType_Type    = Type.GetType("UnityEngine.UIElements.HierarchyChangeType, UnityEngine.UIElementsModule");
 
 		// PRIVATES FIELDS
 
@@ -35,29 +33,29 @@ namespace BsiGame.UI.UIElements
 		private MethodDefinition Create_Panel_HierarchyChanged_Callback_Method(TypeDefinition containingType)
 		{
 			/***
-			 * Creates "VisualElementEvents.Panel_HierarchyChanged_Callback(UnityEngine.UIElements.VisualElement ve, UnityEngine.UIElements.HierarchyChangeType changeType)"
+			 * Creates "VisualElementEvents.Panel_HierarchyChanged_Callback" with the parameters of UnityEngine.UIElements.HierarchyEvent.
 			 *
 			 * ===
 			 *
-			 * private void Panel_HierarchyChanged_Callback(UnityEngine.UIElements.VisualElement ve, UnityEngine.UIElements.HierarchyChangeType changeType)
+			 * private void Panel_HierarchyChanged_Callback(UnityEngine.UIElements.VisualElement ve, UnityEngine.UIElements.HierarchyChangeType changeType, object additionalContext)
 			 * {
 			 *		TriggerEvent(ve, (HierarchyChangeType) (int) changeType);
 			 * }
 			 */
 
-			var triggerEventMethod         = containingType.Methods.FirstOrDefault(m => m.Name == TriggerEvent);
-			var visualElementTypeImp       = mainModule.ImportReference(VisualElement_Type);
-			var hierarchyChangeTypeTypeImp = assemblyDefinition.MainModule.ImportReference(HierarchyChangeType_Type);
+			var triggerEventMethod   = containingType.Methods.FirstOrDefault(m => m.Name == TriggerEvent);
+			var hierarchyEventInvoke = mainModule.ImportReference(HierarchyEvent_Type).Resolve()
+				.Methods.FirstOrDefault(m => m.Name == "Invoke");
 
-			var method          = new MethodDefinition(Panel_HierarchyChanged_Callback, MethodAttributes.Public, mainModule.TypeSystem.Void);
-			var veParam         = new ParameterDefinition("ve", ParameterAttributes.None, visualElementTypeImp);
-			var changeTypeParam = new ParameterDefinition("changeType", ParameterAttributes.None, hierarchyChangeTypeTypeImp);
-
+			var method = new MethodDefinition(Panel_HierarchyChanged_Callback, MethodAttributes.Public, mainModule.TypeSystem.Void);
 			method.Body = new MethodBody(method);
 			var il = method.Body.GetILProcessor();
 
-			method.Parameters.Add(veParam);
-			method.Parameters.Add(changeTypeParam);
+			foreach (var parameter in hierarchyEventInvoke.Parameters)
+			{
+				method.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None,
+					mainModule.ImportReference(parameter.ParameterType)));
+			}
 
 			il.Append(Instruction.Create(OpCodes.Nop));
 			il.Append(Instruction.Create(OpCodes.Ldarg_0));
